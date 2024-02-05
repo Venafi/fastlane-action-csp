@@ -1,0 +1,51 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Signs app using xcode codesign with identity managed by Venafi CodeSign Protect via MacOS keychain support"
+  lane :venafi_cert do
+    app_store_connect_api_key(
+      key_id: ENV['FASTLANE_KEY_ID'],
+      issuer_id: ENV['FASTLANE_ISSUER_ID'],
+      key_filepath: ENV['FASTLANE_KEY_FILEPATH'],
+      duration: 1200
+    )
+    venafi_codesign_cert(
+      apple_id: ENV['FASTLANE_APPLE_ID']
+      tpp_url: ENV['FASTLANE_TPP_URL'],
+      tpp_access_token: ENV['FASTLANE_ACCESS_TOKEN'],
+      tpp_policydn: ENV['FASTLANE_TPP_POLICYDN'],
+      tpp_project: ENV['FASTLANE_TPP_PROJECT'],
+      tpp_environment: ENV['FASTLANE_TPP_ENVIRONMENT'],
+      certificate_type: "APPLEDEVELOPMENT"
+    )
+  end
+  lane :sign_venafi_csp do
+    venafi_codesign_auth(tpp_url: ENV['FASTLANE_TPP_URL'],
+                    tpp_username: ENV['FASTLANE_TPP_USERNAME'],
+                    tpp_password: ENV['FASTLANE_TPP_PASSWORD']
+                    )
+    build_app(
+      project: "SampleIOSApp.xcodeproj",
+      scheme: "SampleIOSApp",
+      output_name: "SampleIOSApp.ipa",
+      export_method: "development",
+      export_options: {
+        provisioningProfiles: {
+          "com.venafilab.SampleIOSApp" => "Venafi Test Profile"
+        }
+      }
+    )
+  end
+end

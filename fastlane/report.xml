@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="fastlane.lanes">
+    
+    
+    
+      
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000244">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="1: venafi_codesign_auth" time="17.083482">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="2: build_app" time="26.156666">
+        
+      </testcase>
+    
+  </testsuite>
+</testsuites>
