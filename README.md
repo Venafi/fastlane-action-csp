@@ -66,6 +66,8 @@ Here is an example lane:
 
 ### Sign with CodeSign Protect:
 
+Here is an example lane:
+
 ```
 venafi_codesign_auth(tpp_url: "https://tpp.example.com",
                     tpp_username: "sample-cs-user",
@@ -83,3 +85,23 @@ venafi_codesign_auth(tpp_url: "https://tpp.example.com",
       }
     )
 ```
+
+## Contributing to the FastLane actions for Venafi CodeSign Protect
+
+Venafi welcomes contributions from the developer community.
+
+1. Fork it to your account (https://github.com/Venafi/fastlane-action-csp/fork)
+2. Clone your fork (`git clone git@github.com:youracct/fastlane-action-csp.git`)
+3. Create a feature branch (`git checkout -b your-branch-name`)
+4. Implement and test your changes
+5. Commit your changes (`git commit -am 'Added some cool functionality'`)
+6. Push to the branch (`git push origin your-branch-name`)
+7. Create a new Pull Request (https://github.com/youracct/fastlane-action-csp/pull/new/your-branch-name)
+
+## License
+
+Copyright &copy; Venafi, Inc. All rights reserved.
+
+fastlane-action-csp is licensed under the Apache License, Version 2.0. See `LICENSE` for the full license text.
+
+Please direct questions/comments to opensource@venafi.com.
