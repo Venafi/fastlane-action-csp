@@ -9,7 +9,7 @@ module Fastlane
         # fastlane will take care of reading in the parameter and fetching the environment variable:
 
         vaultID = get_vault_id(params[:tpp_url], params[:tpp_access_token], "\\VED\\Policy\\" + params[:tpp_policydn] + "\\" + params[:tpp_project] + " " + params[:tpp_environment] + " Certificate")
-        cert = upload_csr(params[:tpp_url], params[:tpp_access_token], vaultID, params[:certificate_type])
+        cert = upload_csr(params[:apple_id], params[:tpp_url], params[:tpp_access_token], vaultID, params[:certificate_type], params[:allowed_bundle_ids])
         import_cert(params[:apple_id], params[:tpp_url], params[:tpp_access_token], params[:tpp_policydn], params[:tpp_project], params[:tpp_environment], cert)
 
       end
@@ -41,7 +41,7 @@ module Fastlane
         end
       end
 
-      def self.upload_csr(url, access_token, vault_id, certificate_type)
+      def self.upload_csr(apple_id, url, access_token, vault_id, certificate_type, allowed_bundle_ids = nil)
         # Get CSR from Venafi CodeSign Protect and upload to Apple
         # Token scope:  Restricted:Manage
         #
@@ -64,6 +64,9 @@ module Fastlane
         rescue StandardError
           UI.error "error: " + response.code + " - " + response.read_body
         end
+
+        # Validate CSR subject before submission to Apple (CWE-345 mitigation)
+        validate_csr_subject(venafi_csr, allowed_bundle_ids)
 
         Spaceship::Portal.login(apple_id)
 
@@ -96,6 +99,44 @@ module Fastlane
         #prod_certs = Spaceship.certificate.production.all
         #return prod_certs[1].download
         return cert.download
+      end
+
+      def self.validate_csr_subject(csr_pem, allowed_bundle_ids)
+        # CWE-345 mitigation: Validate CSR subject before Apple submission
+        require 'openssl'
+
+        begin
+          csr = OpenSSL::X509::Request.new(csr_pem)
+          subject = csr.subject.to_s
+
+          # Extract CN (Common Name) from subject - typically contains bundle_id
+          cn_match = subject.match(/CN=([^,\/]+)/)
+          cn = cn_match ? cn_match[1] : ""
+
+          # Audit log: record CSR subject before submission
+          UI.important "CSR subject validation - CN: #{cn}, Full subject: #{subject}"
+
+          # If allowed_bundle_ids is specified, validate against it
+          if allowed_bundle_ids && !allowed_bundle_ids.empty?
+            allowed_patterns = allowed_bundle_ids.split(',').map(&:strip)
+
+            is_allowed = allowed_patterns.any? do |pattern|
+              # Support wildcard patterns like "com.example.*"
+              regex_pattern = pattern.gsub('.', '\.').gsub('*', '.*')
+              cn.match?(/^#{regex_pattern}$/)
+            end
+
+            unless is_allowed
+              UI.user_error!("CSR validation failed: bundle_id '#{cn}' not in allowed list: #{allowed_bundle_ids}")
+            end
+
+            UI.success "CSR subject validated: '#{cn}' matches allowed patterns"
+          else
+            UI.message "CSR subject logged (no validation patterns configured): #{cn}"
+          end
+        rescue OpenSSL::X509::RequestError => e
+          UI.user_error!("Failed to parse CSR: #{e.message}")
+        end
       end
 
       def self.get_vault_id(url, access_token, cert_dn)
@@ -139,6 +180,16 @@ module Fastlane
 
       def self.available_options
         [
+          FastlaneCore::ConfigItem.new(key: :apple_id,
+                                       # The name of the environment variable
+                                       env_name: 'FL_APPLE_ID',
+                                       # a short description of this parameter
+                                       description: 'Apple ID for App Store Connect authentication',
+                                       verify_block: proc do |value|
+                                         unless value && !value.empty?
+                                           UI.user_error!("No Apple ID given, pass using `apple_id: 'apple@id.com'`")
+                                         end
+                                       end),
           FastlaneCore::ConfigItem.new(key: :tpp_url,
                                        # The name of the environment variable
                                        env_name: 'FL_TPP_URL',
@@ -204,7 +255,14 @@ module Fastlane
                                           UI.user_error!("No Apple certificate type given, pass using `certificate_type: 'Production'`")
                                         end
                                         # UI.user_error!("Couldn't find file at path '#{value}'") unless File.exist?(value)
-                                      end)
+                                      end),
+            FastlaneCore::ConfigItem.new(key: :allowed_bundle_ids,
+                                      # The name of the environment variable
+                                      env_name: 'FL_ALLOWED_BUNDLE_IDS',
+                                      # a short description of this parameter
+                                      description: 'Comma-separated list of allowed bundle ID patterns (supports wildcards, e.g. "com.example.*,com.myapp.*")',
+                                      optional: true,
+                                      default_value: nil)
         ]
       end
 
@@ -224,12 +282,14 @@ module Fastlane
       def self.example_code
         [
           'venafi_codesign_cert(
+            apple_id: "apple@id.com",
             tpp_url: "https://tpp.example.com",
             tpp_access_token: "lfhTMYQtLK+oHS6cUvOCLh==",
             tpp_policydn: "Code Signing\\Certificates",
             tpp_project: "AppleSigning",
             tpp_environment: "MyApp",
-            certificate_type: "PRODUCTION"
+            certificate_type: "PRODUCTION",
+            allowed_bundle_ids: "com.example.*"
           )'
         ]
       end
