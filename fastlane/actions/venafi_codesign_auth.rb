@@ -7,7 +7,7 @@ module Fastlane
     class VenafiCodesignAuthAction < Action
       def self.run(params)
         # fastlane will take care of reading in the parameter and fetching the environment variable:
-        sh "tkdriverconfig getgrant --force --authurl=#{params[:tpp_url]}/vedauth --hsmurl=#{params[:tpp_url]}/vedhsm --username=#{params[:tpp_username]} --password=#{params[:tpp_password]}"
+        sh "tkdriverconfig getgrant --force --authurl=#{params[:tpp_url]}/vedauth --hsmurl=#{params[:tpp_url]}/vedhsm --username=#{params[:tpp_username]} --password=#{params[:tpp_password]}", log: false
         sh "tkdriverconfig sync"
         #sh "codesign -v --force -o runtime -s \"#{params[:identity]}\" #{params[:app_path]}"
         #sh "tkdriverconfig revokegrant --force"
@@ -50,6 +50,7 @@ module Fastlane
                                       env_name: 'FL_TPP_PASSWORD',
                                       # a short description of this parameter
                                       description: 'TPP Password for VenafiCodesignAction',
+                                      sensitive: true,
                                       verify_block: proc do |value|
                                         unless value && !value.empty?
                                           UI.user_error!("No TPP Password for VenafiCodesignAction given, pass using `password: 'password'`")

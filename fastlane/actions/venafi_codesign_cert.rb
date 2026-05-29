@@ -155,6 +155,7 @@ module Fastlane
                                       env_name: 'FL_TPP_ACCESS_TOKEN',
                                       # a short description of this parameter
                                       description: 'TPP access token for VenafiCodesignCertAction',
+                                      sensitive: true,
                                       verify_block: proc do |value|
                                         unless value && !value.empty?
                                           UI.user_error!("No TPP access token for VenafiCodesignCertAction given, pass using `access_token: 'xxxxx'`")
