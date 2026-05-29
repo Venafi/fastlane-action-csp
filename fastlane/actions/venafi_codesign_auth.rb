@@ -10,7 +10,7 @@ module Fastlane
         sh "tkdriverconfig getgrant --force --authurl=#{params[:tpp_url]}/vedauth --hsmurl=#{params[:tpp_url]}/vedhsm --username=#{params[:tpp_username]} --password=#{params[:tpp_password]}"
         sh "tkdriverconfig sync"
         #sh "codesign -v --force -o runtime -s \"#{params[:identity]}\" #{params[:app_path]}"
-        #sh "tkdriverconfig revokegrant --force"
+        # Revocation moved to VenafiCodesignCleanupAction; use in lane's ensure block
       end
 
       def self.description
@@ -70,6 +70,28 @@ module Fastlane
 
       def self.authors
         ['zosocanuck']
+      end
+
+      def self.is_supported?(platform)
+        [:ios, :mac].include?(platform)
+      end
+    end
+
+    class VenafiCodesignCleanupAction < Action
+      def self.run(params)
+        begin
+          Actions.sh(['tkdriverconfig', 'revokegrant', '--force'], log: false)
+        rescue => e
+          UI.important("Venafi CSP grant revocation failed (may already be revoked): #{e.message}")
+        end
+      end
+
+      def self.description
+        'Revoke Venafi CodeSign Protect OAuth grant to clean up session credentials'
+      end
+
+      def self.available_options
+        []
       end
 
       def self.is_supported?(platform)
