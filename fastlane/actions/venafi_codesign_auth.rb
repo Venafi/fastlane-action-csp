@@ -32,7 +32,28 @@ module Fastlane
                                          unless value && !value.empty?
                                            UI.user_error!("No TPP URL for VenafiCodesignAction given, pass using `tpp_url: 'url'`")
                                          end
-                                         # UI.user_error!("Couldn't find file at path '#{value}'") unless File.exist?(value)
+
+                                         # Validate URL to prevent SSRF/credential exfiltration (CWE-918)
+                                         begin
+                                           uri = URI.parse(value)
+                                           unless uri.scheme == 'https'
+                                             UI.user_error!("TPP URL must use HTTPS scheme for security, got: #{uri.scheme}")
+                                           end
+                                           unless uri.host
+                                             UI.user_error!("TPP URL must have a valid hostname")
+                                           end
+
+                                           # Optional allowlist check via FL_TPP_URL_ALLOWLIST (comma-separated domain patterns)
+                                           allowlist = ENV['FL_TPP_URL_ALLOWLIST']
+                                           if allowlist && !allowlist.empty?
+                                             patterns = allowlist.split(',').map(&:strip)
+                                             unless patterns.any? { |pattern| uri.host.end_with?(pattern) || uri.host == pattern }
+                                               UI.user_error!("TPP URL host '#{uri.host}' does not match allowlist: #{patterns.join(', ')}")
+                                             end
+                                           end
+                                         rescue URI::InvalidURIError => e
+                                           UI.user_error!("Invalid TPP URL format: #{e.message}")
+                                         end
                                        end),
           FastlaneCore::ConfigItem.new(key: :tpp_username,
                                       # The name of the environment variable
