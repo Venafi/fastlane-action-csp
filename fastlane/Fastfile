@@ -32,20 +32,24 @@ platform :ios do
     )
   end
   lane :sign_venafi_csp do
-    venafi_codesign_auth(tpp_url: ENV['FASTLANE_TPP_URL'],
-                    tpp_username: ENV['FASTLANE_TPP_USERNAME'],
-                    tpp_password: ENV['FASTLANE_TPP_PASSWORD']
-                    )
-    build_app(
-      project: "SampleIOSApp.xcodeproj",
-      scheme: "SampleIOSApp",
-      output_name: "SampleIOSApp.ipa",
-      export_method: "development",
-      export_options: {
-        provisioningProfiles: {
-          "com.venafilab.SampleIOSApp" => "Venafi Test Profile"
+    begin
+      venafi_codesign_auth(tpp_url: ENV['FASTLANE_TPP_URL'],
+                      tpp_username: ENV['FASTLANE_TPP_USERNAME'],
+                      tpp_password: ENV['FASTLANE_TPP_PASSWORD']
+                      )
+      build_app(
+        project: "SampleIOSApp.xcodeproj",
+        scheme: "SampleIOSApp",
+        output_name: "SampleIOSApp.ipa",
+        export_method: "development",
+        export_options: {
+          provisioningProfiles: {
+            "com.venafilab.SampleIOSApp" => "Venafi Test Profile"
+          }
         }
-      }
-    )
+      )
+    ensure
+      venafi_codesign_cleanup
+    end
   end
 end
