@@ -7,10 +7,10 @@ module Fastlane
     class VenafiCodesignAuthAction < Action
       def self.run(params)
         # fastlane will take care of reading in the parameter and fetching the environment variable:
-        sh "tkdriverconfig getgrant --force --authurl=#{params[:tpp_url]}/vedauth --hsmurl=#{params[:tpp_url]}/vedhsm --username=#{params[:tpp_username]} --password=#{params[:tpp_password]}", log: false
-        sh "tkdriverconfig sync"
+        sh("tkdriverconfig", "getgrant", "--force", "--authurl=#{params[:tpp_url]}/vedauth", "--hsmurl=#{params[:tpp_url]}/vedhsm", "--username=#{params[:tpp_username]}", "--password=#{params[:tpp_password]}", log: false)
+        sh("tkdriverconfig", "sync", log: false)
         #sh "codesign -v --force -o runtime -s \"#{params[:identity]}\" #{params[:app_path]}"
-        #sh "tkdriverconfig revokegrant --force"
+        # Revocation moved to VenafiCodesignCleanupAction; use in lane's ensure block
       end
 
       def self.description
@@ -32,7 +32,28 @@ module Fastlane
                                          unless value && !value.empty?
                                            UI.user_error!("No TPP URL for VenafiCodesignAction given, pass using `tpp_url: 'url'`")
                                          end
-                                         # UI.user_error!("Couldn't find file at path '#{value}'") unless File.exist?(value)
+
+                                         # Validate URL to prevent SSRF/credential exfiltration (CWE-918)
+                                         begin
+                                           uri = URI.parse(value)
+                                           unless uri.scheme == 'https'
+                                             UI.user_error!("TPP URL must use HTTPS scheme for security, got: #{uri.scheme}")
+                                           end
+                                           unless uri.host
+                                             UI.user_error!("TPP URL must have a valid hostname")
+                                           end
+
+                                           # Optional allowlist check via FL_TPP_URL_ALLOWLIST (comma-separated domain patterns)
+                                           allowlist = ENV['FL_TPP_URL_ALLOWLIST']
+                                           if allowlist && !allowlist.empty?
+                                             patterns = allowlist.split(',').map(&:strip)
+                                             unless patterns.any? { |pattern| uri.host.end_with?(pattern) || uri.host == pattern }
+                                               UI.user_error!("TPP URL host '#{uri.host}' does not match allowlist: #{patterns.join(', ')}")
+                                             end
+                                           end
+                                         rescue URI::InvalidURIError => e
+                                           UI.user_error!("Invalid TPP URL format: #{e.message}")
+                                         end
                                        end),
           FastlaneCore::ConfigItem.new(key: :tpp_username,
                                       # The name of the environment variable
@@ -71,6 +92,28 @@ module Fastlane
 
       def self.authors
         ['zosocanuck']
+      end
+
+      def self.is_supported?(platform)
+        [:ios, :mac].include?(platform)
+      end
+    end
+
+    class VenafiCodesignCleanupAction < Action
+      def self.run(params)
+        begin
+          Actions.sh(['tkdriverconfig', 'revokegrant', '--force'], log: false)
+        rescue => e
+          UI.important("Venafi CSP grant revocation failed (may already be revoked): #{e.message}")
+        end
+      end
+
+      def self.description
+        'Revoke Venafi CodeSign Protect OAuth grant to clean up session credentials'
+      end
+
+      def self.available_options
+        []
       end
 
       def self.is_supported?(platform)
