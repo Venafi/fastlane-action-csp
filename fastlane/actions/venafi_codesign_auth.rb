@@ -7,8 +7,8 @@ module Fastlane
     class VenafiCodesignAuthAction < Action
       def self.run(params)
         # fastlane will take care of reading in the parameter and fetching the environment variable:
-        sh "tkdriverconfig getgrant --force --authurl=#{params[:tpp_url]}/vedauth --hsmurl=#{params[:tpp_url]}/vedhsm --username=#{params[:tpp_username]} --password=#{params[:tpp_password]}"
-        sh "tkdriverconfig sync"
+        sh("tkdriverconfig", "getgrant", "--force", "--authurl=#{params[:tpp_url]}/vedauth", "--hsmurl=#{params[:tpp_url]}/vedhsm", "--username=#{params[:tpp_username]}", "--password=#{params[:tpp_password]}", log: false)
+        sh("tkdriverconfig", "sync", log: false)
         #sh "codesign -v --force -o runtime -s \"#{params[:identity]}\" #{params[:app_path]}"
         #sh "tkdriverconfig revokegrant --force"
       end
