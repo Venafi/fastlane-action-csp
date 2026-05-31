@@ -71,6 +71,7 @@ module Fastlane
                                       env_name: 'FL_TPP_PASSWORD',
                                       # a short description of this parameter
                                       description: 'TPP Password for VenafiCodesignAction',
+                                      sensitive: true,
                                       verify_block: proc do |value|
                                         unless value && !value.empty?
                                           UI.user_error!("No TPP Password for VenafiCodesignAction given, pass using `password: 'password'`")
